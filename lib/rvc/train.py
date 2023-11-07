@@ -75,20 +75,26 @@ def glob_dataset(
                 # - ...
                 print("Multispeaker dataset enabled; Processing speakers.")
                 for dir in tqdm.tqdm(os.listdir(glob_str)):
-                    print("Speaker ID " + str(speaker_count) + ": " + dir)
+                    print(f"Speaker ID {str(speaker_count)}: {dir}")
                     speaker_to_id_mapping[dir] = speaker_count
-                    speaker_path = glob_str + "/" + dir
-                    for audio in tqdm.tqdm(os.listdir(speaker_path)):
-                        if is_audio_file(glob_str + "/" + dir + "/" + audio):
-                            datasets_speakers.append((glob_str + "/" + dir + "/" + audio, speaker_count))
+                    speaker_path = f"{glob_str}/{dir}"
+                    datasets_speakers.extend(
+                        (f"{glob_str}/{dir}/{audio}", speaker_count)
+                        for audio in tqdm.tqdm(os.listdir(speaker_path))
+                        if is_audio_file(f"{glob_str}/{dir}/{audio}")
+                    )
                     speaker_count += 1
                 with open(os.path.join(training_dir, "speaker_info.json"), "w") as outfile:
-                    print("Dumped speaker info to {}".format(os.path.join(training_dir, "speaker_info.json")))
+                    print(
+                        f'Dumped speaker info to {os.path.join(training_dir, "speaker_info.json")}'
+                    )
                     json.dump(speaker_to_id_mapping, outfile)
                 continue # Skip the normal speaker extend
 
             glob_str = os.path.join(glob_str, "**", "*")
-        print("Single speaker dataset enabled; Processing speaker as ID " + str(speaker_id) + ".")
+        print(
+            f"Single speaker dataset enabled; Processing speaker as ID {speaker_id}."
+        )
         datasets_speakers.extend(
             [
                 (file, speaker_id)
@@ -193,10 +199,7 @@ def change_speaker(net_g, speaker_info, embedder, embedding_output_layer, phone,
         "output_layer": embedding_output_layer
     }
     logits = embedder.extract_features(**inputs)
-    if phone.shape[-1] == 768:
-        feats = logits[0]
-    else:
-        feats = embedder.final_proj(logits[0])
+    feats = logits[0] if phone.shape[-1] == 768 else embedder.final_proj(logits[0])
     feats = torch.repeat_interleave(feats, 2, 1)
     new_phone = torch.zeros(phone.shape).to(device, dtype)
     new_phone[:, :feats.shape[1]] = feats[:, :phone.shape[1]]
@@ -226,10 +229,7 @@ def change_speaker_nono(net_g, embedder, embedding_output_layer, phone, phone_le
     }
 
     logits = embedder.extract_features(**inputs)
-    if phone.shape[-1] == 768:
-        feats = logits[0]
-    else:
-        feats = embedder.final_proj(logits[0])
+    feats = logits[0] if phone.shape[-1] == 768 else embedder.final_proj(logits[0])
     feats = torch.repeat_interleave(feats, 2, 1)
     new_phone = torch.zeros(phone.shape).to(device, dtype)
     new_phone[:, :feats.shape[1]] = feats[:, :phone.shape[1]]
@@ -248,6 +248,7 @@ def train_index(
     feature_256_dir = os.path.join(training_dir, "3_feature256")
     index_dir = os.path.join(os.path.dirname(checkpoint_path), f"{model_name}_index")
     os.makedirs(index_dir, exist_ok=True)
+    batch_size_add = 8192
     for speaker_id in tqdm.tqdm(
         sorted([dir for dir in os.listdir(feature_256_dir) if dir.isdecimal()])
     ):
@@ -268,7 +269,10 @@ def train_index(
         np.random.shuffle(big_npy_idx)
         big_npy = big_npy[big_npy_idx]
 
-        if not maximum_index_size is None and big_npy.shape[0] > maximum_index_size:
+        if (
+            maximum_index_size is not None
+            and big_npy.shape[0] > maximum_index_size
+        ):
             kmeans = MiniBatchKMeans(
                 n_clusters=maximum_index_size,
                 batch_size=256 * num_cpu_process,
@@ -282,15 +286,14 @@ def train_index(
         emb_ch = big_npy.shape[1]
         emb_ch_half = emb_ch // 2
         n_ivf = int(8 * np.sqrt(big_npy.shape[0]))
-        if big_npy.shape[0] >= 1_000_000:
-            index = faiss.index_factory(
+        index = (
+            faiss.index_factory(
                 emb_ch, f"IVF{n_ivf},PQ{emb_ch_half}x4fsr,RFlat"
             )
-        else:
-            index = faiss.index_factory(emb_ch, f"IVF{n_ivf},Flat")
-
+            if big_npy.shape[0] >= 1_000_000
+            else faiss.index_factory(emb_ch, f"IVF{n_ivf},Flat")
+        )
         index.train(big_npy)
-        batch_size_add = 8192
         for i in range(0, big_npy.shape[0], batch_size_add):
             index.add(big_npy[i : i + batch_size_add])
         np.save(

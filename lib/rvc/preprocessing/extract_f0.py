@@ -67,7 +67,7 @@ def get_f0_crepe_computation(
     if audio.ndim == 2 and audio.shape[0] > 1:
         audio = torch.mean(audio, dim=0, keepdim=True).detach()
     audio = audio.detach()
-    print("Initiating prediction with a crepe_hop_length of: " + str(hop_length))
+    print(f"Initiating prediction with a crepe_hop_length of: {str(hop_length)}")
     pitch: Tensor = torchcrepe.predict(
         audio,
         sr,
@@ -148,19 +148,19 @@ def processor(paths, f0_method, samplerate=16000, hop_size=160, process_id=0):
     fs = samplerate
     hop = hop_size
 
-    f0_bin = 256
     f0_max = 1100.0
     f0_min = 50.0
     f0_mel_min = 1127 * np.log(1 + f0_min / 700)
     f0_mel_max = 1127 * np.log(1 + f0_max / 700)
     if len(paths) != 0:
+        f0_bin = 256
         for idx, (inp_path, opt_path1, opt_path2) in enumerate(
             tqdm(paths, position=1 + process_id)
         ):
             try:
                 if (
-                    os.path.exists(opt_path1 + ".npy") == True
-                    and os.path.exists(opt_path2 + ".npy") == True
+                    os.path.exists(f"{opt_path1}.npy") == True
+                    and os.path.exists(f"{opt_path2}.npy") == True
                 ):
                     continue
                 featur_pit = compute_f0(inp_path, f0_method, fs, hop, f0_max, f0_min)
@@ -195,10 +195,13 @@ def run(training_dir: str, num_processes: int, f0_method: str):
 
     for pathname in sorted(list(os.listdir(dataset_dir))):
         if os.path.isdir(os.path.join(dataset_dir, pathname)):
-            for f in sorted(list(os.listdir(os.path.join(dataset_dir, pathname)))):
-                if "spec" in f:
-                    continue
-                names.append(os.path.join(pathname, f))
+            names.extend(
+                os.path.join(pathname, f)
+                for f in sorted(
+                    list(os.listdir(os.path.join(dataset_dir, pathname)))
+                )
+                if "spec" not in f
+            )
         else:
             names.append(pathname)
 
@@ -210,7 +213,7 @@ def run(training_dir: str, num_processes: int, f0_method: str):
         opt_filepath_f0_nsf = os.path.join(opt_dir_f0_nsf, name)
         paths.append([filepath, opt_filepath_f0, opt_filepath_f0_nsf])
 
-    for dir in set([(os.path.dirname(p[1]), os.path.dirname(p[2])) for p in paths]):
+    for dir in {(os.path.dirname(p[1]), os.path.dirname(p[2])) for p in paths}:
         os.makedirs(dir[0], exist_ok=True)
         os.makedirs(dir[1], exist_ok=True)
 

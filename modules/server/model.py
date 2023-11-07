@@ -64,7 +64,7 @@ class VoiceServerModel:
         state_dict["params"]["spk_embed_dim"] = state_dict["weight"][
             "emb_g.weight"
         ].shape[0]
-        if not "emb_channels" in state_dict["params"]:
+        if "emb_channels" not in state_dict["params"]:
             if state_dict.get("version", "v1") == "v1":
                 state_dict["params"]["emb_channels"] = 256  # for backward compat.
                 state_dict["embedder_output_layer"] = 9
@@ -80,11 +80,7 @@ class VoiceServerModel:
         del self.net_g.enc_q
         self.net_g.load_state_dict(state_dict["weight"], strict=False)
         self.net_g.eval().to(device)
-        if is_half:
-            self.net_g = self.net_g.half()
-        else:
-            self.net_g = self.net_g.float()
-
+        self.net_g = self.net_g.half() if is_half else self.net_g.float()
         emb_name = state_dict.get("embedder_name", "contentvec")
         if emb_name == "hubert_base":
             emb_name = "contentvec"
@@ -96,10 +92,7 @@ class VoiceServerModel:
         embedder_model = models[0]
         embedder_model = embedder_model.to(device)
 
-        if is_half:
-            embedder_model = embedder_model.half()
-        else:
-            embedder_model = embedder_model.float()
+        embedder_model = embedder_model.half() if is_half else embedder_model.float()
         embedder_model.eval()
         self.embedder_model = embedder_model
 
@@ -230,10 +223,7 @@ class VoiceServerModel:
         index_rate: float,
     ):
         feats = torch.from_numpy(audio)
-        if self.is_half:
-            feats = feats.half()
-        else:
-            feats = feats.float()
+        feats = feats.half() if self.is_half else feats.float()
         if feats.dim() == 2:  # double channels
             feats = feats.mean(-1)
         assert feats.dim() == 1, feats.dim()
@@ -282,8 +272,8 @@ class VoiceServerModel:
                     feats = self.embedder_model.final_proj(logits[0])
 
         if (
-            isinstance(self.index, type(None)) == False
-            and isinstance(self.big_npy, type(None)) == False
+            not isinstance(self.index, type(None))
+            and not isinstance(self.big_npy, type(None))
             and index_rate != 0
         ):
             npy = feats[0].cpu().numpy()
@@ -350,7 +340,7 @@ def get_f0_crepe_computation(
     if audio.ndim == 2 and audio.shape[0] > 1:
         audio = torch.mean(audio, dim=0, keepdim=True).detach()
     audio = audio.detach()
-    print("Initiating prediction with a crepe_hop_length of: " + str(hop_length))
+    print(f"Initiating prediction with a crepe_hop_length of: {str(hop_length)}")
     pitch: Tensor = torchcrepe.predict(
         audio,
         sr,
@@ -371,8 +361,7 @@ def get_f0_crepe_computation(
         np.arange(0, len(source)),
         source
     )
-    f0 = np.nan_to_num(target)
-    return f0 # Resized f0
+    return np.nan_to_num(target)
 
 def get_f0_official_crepe_computation(
         x,

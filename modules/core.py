@@ -14,7 +14,7 @@ from modules.utils import download_file
 def get_hf_etag(url: str):
     r = requests.head(url)
 
-    etag = r.headers["X-Linked-ETag"] if "X-Linked-ETag" in r.headers else ""
+    etag = r.headers.get("X-Linked-ETag", "")
 
     if etag.startswith('"') and etag.endswith('"'):
         etag = etag[1:-1]
@@ -75,7 +75,7 @@ def download_models():
     # japanese-hubert-base (Fairseq)
     # from official repo
     # NOTE: change filename?
-    hubert_jp_url = f"https://huggingface.co/rinna/japanese-hubert-base/resolve/main/fairseq/model.pt"
+    hubert_jp_url = "https://huggingface.co/rinna/japanese-hubert-base/resolve/main/fairseq/model.pt"
     out = os.path.join(MODELS_DIR, "embeddings", "rinna_hubert_base_jp.pt")
     if not hash_check(hubert_jp_url, out):
         tasks.append(
@@ -85,7 +85,7 @@ def download_models():
             )
         )
 
-    if len(tasks) < 1:
+    if not tasks:
         return
 
     with ThreadPoolExecutor() as pool:
