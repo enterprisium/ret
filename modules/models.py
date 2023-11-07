@@ -62,7 +62,7 @@ def update_state_dict(state_dict):
             continue
         state_dict["params"][key] = state_dict["config"][i]
 
-    if not "emb_channels" in state_dict["params"]:
+    if "emb_channels" not in state_dict["params"]:
         if state_dict.get("version", "v1") == "v1":
             state_dict["params"]["emb_channels"] = 256  # for backward compat.
             state_dict["embedder_output_layer"] = 9
@@ -81,7 +81,7 @@ class VoiceConvertModel:
         state_dict["params"]["spk_embed_dim"] = state_dict["weight"][
             "emb_g.weight"
         ].shape[0]
-        if not "emb_channels" in state_dict["params"]:
+        if "emb_channels" not in state_dict["params"]:
             state_dict["params"]["emb_channels"] = 256  # for backward compat.
 
         if f0 == 1:
@@ -96,11 +96,7 @@ class VoiceConvertModel:
         self.net_g.load_state_dict(state_dict["weight"], strict=False)
         self.net_g.eval().to(device)
 
-        if is_half:
-            self.net_g = self.net_g.half()
-        else:
-            self.net_g = self.net_g.float()
-
+        self.net_g = self.net_g.half() if is_half else self.net_g.float()
         self.vc = VocalConvertPipeline(self.tgt_sr, device, is_half)
         self.n_spk = state_dict["params"]["spk_embed_dim"]
 
@@ -120,7 +116,7 @@ class VoiceConvertModel:
     ):
         if not input_audio:
             raise Exception("You need to set Source Audio")
-        f0_up_key = int(f0_up_key)
+        f0_up_key = f0_up_key
         audio = load_audio(input_audio, 16000)
 
         if embedder_model_name == "auto":
@@ -135,11 +131,11 @@ class VoiceConvertModel:
         if embedder_model_name == "hubert_base":
             embedder_model_name = "contentvec"
 
-        if not embedder_model_name in EMBEDDINGS_LIST.keys():
+        if embedder_model_name not in EMBEDDINGS_LIST.keys():
             raise Exception(f"Not supported embedder: {embedder_model_name}")
 
         if (
-            embedder_model == None
+            embedder_model is None
             or loaded_embedder_model != EMBEDDINGS_LIST[embedder_model_name][1]
         ):
             print(f"load {embedder_model_name} embedder")
@@ -188,11 +184,9 @@ class VoiceConvertModel:
         index = 0
         existing_files = os.listdir(output_dir)
         for existing_file in existing_files:
-            result = re.match(r"\d+", existing_file)
-            if result:
+            if result := re.match(r"\d+", existing_file):
                 prefix_num = int(result.group(0))
-                if index < prefix_num:
-                    index = prefix_num
+                index = max(index, prefix_num)
         audio.export(
             os.path.join(
                 output_dir, f"{index+1}-{model_splitext}-{input_audio_splitext}.wav"
@@ -226,7 +220,7 @@ def get_models():
     return [
         file
         for file in os.listdir(dir)
-        if any([x for x in [".ckpt", ".pth"] if file.endswith(x)])
+        if any(x for x in [".ckpt", ".pth"] if file.endswith(x))
     ]
 
 
@@ -246,10 +240,7 @@ def load_embedder(emb_file: str, emb_name: str):
     embedder_model = models[0]
     embedder_model = embedder_model.to(device)
 
-    if is_half:
-        embedder_model = embedder_model.half()
-    else:
-        embedder_model = embedder_model.float()
+    embedder_model = embedder_model.half() if is_half else embedder_model.float()
     embedder_model.eval()
 
     loaded_embedder_model = emb_name

@@ -29,11 +29,7 @@ class Merge(Tab):
             model_b = model_b if type(model_b) != list and model_b != "" else None
             model_c = model_c if type(model_c) != list and model_c != "" else None
 
-            if each_key:
-                weights = json.loads(weight_text)
-            else:
-                weights = {}
-
+            weights = json.loads(weight_text) if each_key else {}
             method = [k for k, v in MERGE_METHODS.items() if v == method][0]
             return merge(
                 os.path.join(models.MODELS_DIR, "checkpoints", model_a),
@@ -309,7 +305,7 @@ class Merge(Tab):
 
                 def update_weights_text(data):
                     d = {}
-                    for key in weights.keys():
+                    for key in weights:
                         d[key] = data[weights[key]]
                     return json.dumps(d)
 

@@ -26,20 +26,17 @@ def merge(
     def load_weight(path: str):
         print(f"Loading {path}...")
         state_dict = torch.load(path, map_location="cpu")
-        if "model" in state_dict:
-            weight = extract(state_dict)
-        else:
-            weight = state_dict["weight"]
+        weight = extract(state_dict) if "model" in state_dict else state_dict["weight"]
         return weight, state_dict
 
     def get_alpha(key: str):
         try:
             filtered = sorted(
-                [x for x in weights.keys() if key.startswith(x)], key=len, reverse=True
+                [x for x in weights if key.startswith(x)],
+                key=len,
+                reverse=True,
             )
-            if len(filtered) < 1:
-                return alpha
-            return weights[filtered[0]]
+            return alpha if len(filtered) < 1 else weights[filtered[0]]
         except:
             return alpha
 

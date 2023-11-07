@@ -42,8 +42,8 @@ def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False)
         print("max value is ", torch.max(y))
 
     global hann_window
-    dtype_device = str(y.dtype) + "_" + str(y.device)
-    wnsize_dtype_device = str(win_size) + "_" + dtype_device
+    dtype_device = f"{str(y.dtype)}_{str(y.device)}"
+    wnsize_dtype_device = f"{str(win_size)}_{dtype_device}"
     if wnsize_dtype_device not in hann_window:
         hann_window[wnsize_dtype_device] = torch.hann_window(win_size).to(
             dtype=y.dtype, device=y.device
@@ -82,8 +82,8 @@ def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False)
 
 def spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax):
     global mel_basis
-    dtype_device = str(spec.dtype) + "_" + str(spec.device)
-    fmax_dtype_device = str(fmax) + "_" + dtype_device
+    dtype_device = f"{str(spec.dtype)}_{str(spec.device)}"
+    fmax_dtype_device = f"{str(fmax)}_{dtype_device}"
     if fmax_dtype_device not in mel_basis:
         mel = librosa_mel_fn(sampling_rate, n_fft, num_mels, fmin, fmax)
         mel_basis[fmax_dtype_device] = torch.from_numpy(mel).to(
@@ -107,7 +107,4 @@ def mel_spectrogram_torch(
     # Linear-frequency Linear-amplitude spectrogram :: (B, T) -> (B, Freq, Frame)
     spec = spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center)
 
-    # Mel-frequency Log-amplitude spectrogram :: (B, Freq, Frame) -> (B, Freq=num_mels, Frame)
-    melspec = spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax)
-
-    return melspec
+    return spec_to_mel_torch(spec, n_fft, num_mels, sampling_rate, fmin, fmax)

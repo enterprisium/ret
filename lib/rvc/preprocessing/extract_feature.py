@@ -111,15 +111,15 @@ def processor(
 
                     with torch.no_grad():
                         if half_support:
-                            if is_feats_dim_768:
-                                feats = model[1](feats).last_hidden_state
-                            else:
-                                feats = model[1](feats).extract_features
+                            feats = (
+                                model[1](feats).last_hidden_state
+                                if is_feats_dim_768
+                                else model[1](feats).extract_features
+                            )
+                        elif is_feats_dim_768:
+                            feats = model[1].float()(feats).last_hidden_state
                         else:
-                            if is_feats_dim_768:
-                                feats = model[1].float()(feats).last_hidden_state
-                            else:
-                                feats = model[1].float()(feats).extract_features
+                            feats = model[1].float()(feats).extract_features
                 else:
                     inputs = {
                         "source": feats.half().to(device)
@@ -136,11 +136,7 @@ def processor(
 
                     with torch.no_grad():
                         logits = model.extract_features(**inputs)
-                        if is_feats_dim_768:
-                            feats = logits[0]
-                        else:
-                            feats = model.final_proj(logits[0])
-
+                        feats = logits[0] if is_feats_dim_768 else model.final_proj(logits[0])
                 feats = feats.squeeze(0).float().cpu().numpy()
                 if np.isnan(feats).sum() == 0:
                     np.save(out_filepath, feats, allow_pickle=False)

@@ -69,44 +69,47 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
                 print(
                     f"shape-{k}-mismatch|need-{state_dict[k].shape}|get-{saved_state_dict[k].shape}"
                 )
-                if saved_state_dict[k].dim() == 2:  # NOTE: check is this ok?
+                if saved_state_dict[k].dim() != 2:
+                    raise KeyError
                     # for embedded input 256 <==> 768
                     # this achieves we can continue training from original's pretrained checkpoints when using embedder that 768-th dim output etc.
-                    if saved_state_dict[k].dtype == torch.half:
-                        new_state_dict[k] = (
-                            F.interpolate(
-                                saved_state_dict[k].float().unsqueeze(0).unsqueeze(0),
-                                size=state_dict[k].shape,
-                                mode="bilinear",
-                            )
-                            .half()
-                            .squeeze(0)
-                            .squeeze(0)
+                new_state_dict[k] = (
+                    (
+                        F.interpolate(
+                            saved_state_dict[k]
+                            .float()
+                            .unsqueeze(0)
+                            .unsqueeze(0),
+                            size=state_dict[k].shape,
+                            mode="bilinear",
                         )
-                    else:
-                        new_state_dict[k] = (
-                            F.interpolate(
-                                saved_state_dict[k].unsqueeze(0).unsqueeze(0),
-                                size=state_dict[k].shape,
-                                mode="bilinear",
-                            )
-                            .squeeze(0)
-                            .squeeze(0)
-                        )
-                    print(
-                        "interpolated new_state_dict",
-                        k,
-                        "from",
-                        saved_state_dict[k].shape,
-                        "to",
-                        new_state_dict[k].shape,
+                        .half()
+                        .squeeze(0)
+                        .squeeze(0)
                     )
-                else:
-                    raise KeyError
+                    if saved_state_dict[k].dtype == torch.half
+                    else (
+                        F.interpolate(
+                            saved_state_dict[k].unsqueeze(0).unsqueeze(0),
+                            size=state_dict[k].shape,
+                            mode="bilinear",
+                        )
+                        .squeeze(0)
+                        .squeeze(0)
+                    )
+                )
+                print(
+                    "interpolated new_state_dict",
+                    k,
+                    "from",
+                    saved_state_dict[k].shape,
+                    "to",
+                    new_state_dict[k].shape,
+                )
         except Exception as e:
             # print(traceback.format_exc())
             print(f"{k} is not in the checkpoint")
-            print("error: %s" % e)
+            print(f"error: {e}")
             new_state_dict[k] = v  # 模型自带的随机值
     if hasattr(model, "module"):
         model.module.load_state_dict(new_state_dict, strict=False)
@@ -118,15 +121,13 @@ def load_checkpoint(checkpoint_path, model, optimizer=None, load_opt=1):
     learning_rate = checkpoint_dict["learning_rate"]
     if optimizer is not None and load_opt == 1:
         optimizer.load_state_dict(checkpoint_dict["optimizer"])
-    print("Loaded checkpoint '{}' (epoch {})".format(checkpoint_path, epoch))
+    print(f"Loaded checkpoint '{checkpoint_path}' (epoch {epoch})")
     return model, optimizer, learning_rate, epoch
 
 
 def save_state(model, optimizer, learning_rate, epoch, checkpoint_path):
     print(
-        "Saving model and optimizer state at epoch {} to {}".format(
-            epoch, checkpoint_path
-        )
+        f"Saving model and optimizer state at epoch {epoch} to {checkpoint_path}"
     )
     if hasattr(model, "module"):
         state_dict = model.module.state_dict()
@@ -164,11 +165,10 @@ def summarize(
 
 def latest_checkpoint_path(dir_path, regex="G_*.pth"):
     filelist = glob.glob(os.path.join(dir_path, regex))
-    if len(filelist) == 0:
+    if not filelist:
         return None
     filelist.sort(key=lambda f: int("".join(filter(str.isdigit, f))))
-    filepath = filelist[-1]
-    return filepath
+    return filelist[-1]
 
 
 def plot_spectrogram_to_numpy(spectrogram):

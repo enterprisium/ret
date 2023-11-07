@@ -118,8 +118,8 @@ def prepare_environment():
 
     run(
         f'"{python}" -m pip install -r requirements.txt',
-        desc=f"Installing requirements",
-        errdesc=f"Couldn't install requirements",
+        desc="Installing requirements",
+        errdesc="Couldn't install requirements",
     )
 
 

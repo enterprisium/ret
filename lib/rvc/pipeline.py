@@ -79,7 +79,7 @@ class VocalConvertPipeline(object):
         if audio.ndim == 2 and audio.shape[0] > 1:
             audio = torch.mean(audio, dim=0, keepdim=True).detach()
         audio = audio.detach()
-        print("Initiating prediction with a crepe_hop_length of: " + str(hop_length))
+        print(f"Initiating prediction with a crepe_hop_length of: {str(hop_length)}")
         pitch: Tensor = torchcrepe.predict(
             audio,
             self.sr,
@@ -100,8 +100,7 @@ class VocalConvertPipeline(object):
             np.arange(0, len(source)),
             source
         )
-        f0 = np.nan_to_num(target)
-        return f0 # Resized f0
+        return np.nan_to_num(target)
 
     def get_f0_official_crepe_computation(
             self,
@@ -207,10 +206,7 @@ class VocalConvertPipeline(object):
         index_rate: float,
     ):
         feats = torch.from_numpy(audio)
-        if self.is_half:
-            feats = feats.half()
-        else:
-            feats = feats.float()
+        feats = feats.half() if self.is_half else feats.float()
         if feats.dim() == 2:  # double channels
             feats = feats.mean(-1)
         assert feats.dim() == 1, feats.dim()
@@ -253,14 +249,10 @@ class VocalConvertPipeline(object):
 
             with torch.no_grad():
                 logits = model.extract_features(**inputs)
-                if is_feats_dim_768:
-                    feats = logits[0]
-                else:
-                    feats = model.final_proj(logits[0])
-
+                feats = logits[0] if is_feats_dim_768 else model.final_proj(logits[0])
         if (
-            isinstance(index, type(None)) == False
-            and isinstance(big_npy, type(None)) == False
+            not isinstance(index, type(None))
+            and not isinstance(big_npy, type(None))
             and index_rate != 0
         ):
             npy = feats[0].cpu().numpy()
@@ -361,9 +353,7 @@ class VocalConvertPipeline(object):
             try:
                 with open(f0_file.name, "r") as f:
                     lines = f.read().strip("\n").split("\n")
-                inp_f0 = []
-                for line in lines:
-                    inp_f0.append([float(i) for i in line.split(",")])
+                inp_f0 = [[float(i) for i in line.split(",")] for line in lines]
                 inp_f0 = np.array(inp_f0, dtype="float32")
             except:
                 traceback.print_exc()

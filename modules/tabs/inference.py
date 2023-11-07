@@ -72,18 +72,18 @@ class Inference(Tab):
 
     def ui(self, outlet):
         def infer(
-            sid,
-            input_audio,
-            out_dir,
-            embedder_model,
-            embedding_output_layer,
-            f0_up_key,
-            f0_file,
-            f0_method,
-            auto_load_index,
-            faiss_index_file,
-            index_rate,
-        ):
+                sid,
+                input_audio,
+                out_dir,
+                embedder_model,
+                embedding_output_layer,
+                f0_up_key,
+                f0_file,
+                f0_method,
+                auto_load_index,
+                faiss_index_file,
+                index_rate,
+            ):
             model = models.vc_model
             try:
                 yield "Infering...", None
@@ -120,7 +120,7 @@ class Inference(Tab):
                     )
                 yield "Success", (model.tgt_sr, audio) if len(files) == 1 else None
             except:
-                yield "Error: " + traceback.format_exc(), None
+                yield (f"Error: {traceback.format_exc()}", None)
 
         with gr.Group():
             with gr.Box():

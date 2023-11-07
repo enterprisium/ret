@@ -53,7 +53,7 @@ class Tab:
         for child in children:
             attrs = child.__dict__
             tab = [x for x in attrs.values() if issubclass(x, Tab)]
-            if len(tab) > 0:
+            if tab:
                 tabs.append(tab[0])
 
         def outlet():
@@ -75,16 +75,16 @@ def load_tabs() -> List[Tab]:
         module_name = file[:-3]
         module = importlib.import_module(f"modules.tabs.{module_name}")
         attrs = module.__dict__
-        TabClass = [
+        if TabClass := [
             x
             for x in attrs.values()
-            if type(x) == type and issubclass(x, Tab) and not x == Tab
-        ]
-        if len(TabClass) > 0:
+            if type(x) == type and issubclass(x, Tab) and x != Tab
+        ]:
             tabs.append((file, TabClass[0]))
 
-    tabs = sorted([TabClass(file) for file, TabClass in tabs], key=lambda x: x.sort())
-    return tabs
+    return sorted(
+        [TabClass(file) for file, TabClass in tabs], key=lambda x: x.sort()
+    )
 
 
 def webpath(fn):
@@ -98,9 +98,7 @@ def webpath(fn):
 
 def javascript_html():
     script_js = os.path.join(ROOT_DIR, "script.js")
-    head = f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
-
-    return head
+    return f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
 
 
 def css_html():

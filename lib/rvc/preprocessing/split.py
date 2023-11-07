@@ -151,11 +151,11 @@ def preprocess_audio(
     if os.path.exists(waves_dir) and os.path.exists(waves16k_dir):
         return
 
-    for speaker_id in set([spk for _, spk in datasets]):
+    for speaker_id in {spk for _, spk in datasets}:
         os.makedirs(os.path.join(waves_dir, f"{speaker_id:05}"), exist_ok=True)
         os.makedirs(os.path.join(waves16k_dir, f"{speaker_id:05}"), exist_ok=True)
 
-    all = [(i, x) for i, x in enumerate(sorted(datasets, key=operator.itemgetter(0)))]
+    all = list(enumerate(sorted(datasets, key=operator.itemgetter(0))))
 
     # n of datasets per process
     process_all_nums = [len(all) // num_processes] * num_processes
@@ -191,5 +191,5 @@ def preprocess_audio(
             )
             all_index += process_all_nums[i]
 
-    for speaker_id in set([spk for _, spk in datasets]):
+    for speaker_id in {spk for _, spk in datasets}:
         write_mute(mute_wav_path, speaker_id, waves_dir, waves16k_dir, sampling_rate)

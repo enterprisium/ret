@@ -62,19 +62,18 @@ def separate_audio(
 
                     if len(sub_chunks[-1]) < min:
                         if padding and len(sub_chunks) > 2:
-                            output_chunks.extend(sub_chunks[0:-2])
+                            output_chunks.extend(sub_chunks[:-2])
                             output_chunks.append(sub_chunks[-2] + sub_chunks[-1])
                         else:
-                            output_chunks.extend(sub_chunks[0:-1])
+                            output_chunks.extend(sub_chunks[:-1])
                     else:
                         output_chunks.extend(sub_chunks)
                 else:
                     output_chunks.append(chunk)
+            elif so_short is None:
+                so_short = chunk
             else:
-                if so_short is None:
-                    so_short = chunk
-                else:
-                    so_short += chunk
+                so_short += chunk
         basename = os.path.splitext(os.path.basename(file))[0]
 
         for i, chunk in enumerate(output_chunks):
